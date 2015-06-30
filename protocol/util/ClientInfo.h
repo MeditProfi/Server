@@ -26,6 +26,7 @@
 #include <iostream>
 
 #include <common/log/log.h>
+#include <boost/algorithm/string/replace.hpp>
 
 namespace caspar { namespace IO {
 
@@ -55,14 +56,38 @@ struct ConsoleClientInfo : public caspar::IO::ClientInfo
 	virtual std::wstring print() const {return L"Console";}
 };
 
-struct ScriptClientInfo : public caspar::IO::ClientInfo 
+struct MacroClientInfo : public caspar::IO::ClientInfo 
+{
+	const std::wstring filename_;
+	MacroClientInfo(std::wstring filename) : filename_(filename) {}
+
+	void Send(const std::wstring& data)
+	{
+		auto esc_data = data;
+		boost::replace_all(esc_data, "\r", "\\r");
+		boost::replace_all(esc_data, "\n", "\\n");
+
+		if (esc_data.size() <= 512)
+		{
+			CASPAR_LOG(info) << "Received answer to macro " << filename_ << ": " << esc_data;
+		}
+		else
+		{
+			CASPAR_LOG(info) << "Received answer to macro " << filename_ << ": more than 512 characters";
+		}
+	}
+	void Disconnect(){}
+	virtual std::wstring print() const {return L"Macro " + filename_;}
+};
+
+struct StartupClientInfo : public caspar::IO::ClientInfo 
 {
 	void Send(const std::wstring& data)
 	{
-		std::wcout << (L"#" + caspar::log::replace_nonprintable_copy(data, L'?'));
+		std::wcout << L"Executing startup command: " << data.c_str();
 	}
 	void Disconnect(){}
-	virtual std::wstring print() const {return L"Script";}	
+	virtual std::wstring print() const {return L"Startup";}
 };
 
 }}

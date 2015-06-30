@@ -105,6 +105,9 @@
     </ClInclude>
     <ClInclude Include="vidibus\server.h">
       <Filter>source\vidibus</Filter>
+	</ClInclude>
+    <ClInclude Include="util\macro.h">
+      <Filter>source\util</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -162,6 +165,9 @@
     </ClCompile>
     <ClCompile Include="vidibus\server.cpp">
       <Filter>source\vidibus</Filter>
+	</ClCompile>
+    <ClCompile Include="util\macro.cpp">
+      <Filter>source\util</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

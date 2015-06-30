@@ -89,6 +89,8 @@
 
 #include <tbb/concurrent_unordered_map.h>
 
+#include "../util/macro.h"
+
 /* Return codes
 
 100 [action]			Information om att något har hänt  
@@ -1202,42 +1204,32 @@ bool LoadCommand::DoExecute()
 //		return L"";
 //	};
 
-bool ScriptCommand::DoExecute()
+bool MacroCommand::DoExecute()
 {
 	try
 	{
-		std::vector<std::wstring> seq;
-
-		auto filename = env::scripts_folder() + L"\\" + _parameters.at_original(0);
-		auto file = std::wfstream(filename, std::ios::in);
-		if(!file) BOOST_THROW_EXCEPTION(file_not_found());
-
-		std::wstring line;
-		while (!file.eof())
+		auto filename = _parameters.at_original(0);
+		auto client_ptr = std::make_shared<caspar::IO::MacroClientInfo>(filename);
+		auto amcp_ptr = protocol_;
+		execute_macro(filename, _parameters, [=](const std::wstring& cmd)
 		{
-			std::getline(file, line);
+			auto termcmd = cmd + L"\r\n";
+			amcp_ptr->Parse(termcmd.c_str(), termcmd.length(), client_ptr);
+		});
 
-			for (int i = 0; i < _parameters.size(); i++)
-			{
-				boost::replace_all(line, L"$" + std::to_wstring((long long)i), _parameters.at_original(i));	
-			}
-			seq.push_back(line + L"\r\n");
-		}
-	
-		protocol->executeScriptSequence(seq);
-		SetReplyString(TEXT("202 SCRIPT OK\r\n"));
+		SetReplyString(TEXT("202 MACRO OK\r\n"));
 		return true;
 	}
 	catch(file_not_found&)
 	{
 		CASPAR_LOG_CURRENT_EXCEPTION();
-		SetReplyString(TEXT("404 SCRIPT ERROR\r\n"));
+		SetReplyString(TEXT("404 MACRO ERROR\r\n"));
 		return false;
 	}
 	catch(...)
 	{
 		CASPAR_LOG_CURRENT_EXCEPTION();
-		SetReplyString(TEXT("502 SCRIPT FAILED\r\n"));
+		SetReplyString(TEXT("500 MACRO FAILED\r\n"));
 		return false;
 	}
 }

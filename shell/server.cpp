@@ -164,7 +164,7 @@ struct server::implementation : boost::noncopyable
 
 		setup_thumbnail_generation(env::properties());
 
-		setup_controllers(env::properties());
+		auto first_amcp_ptr = setup_controllers(env::properties());
 		CASPAR_LOG(info) << L"Initialized controllers.";
 
 		setup_osc(env::properties());
@@ -172,6 +172,9 @@ struct server::implementation : boost::noncopyable
 
 		start_initial_media_info_scan();
 		CASPAR_LOG(info) << L"Started initial media information retrieval.";
+
+		call_initial_macro(first_amcp_ptr);
+		CASPAR_LOG(info) << L"Called initial macro.";
 	}
 
 	~implementation()
@@ -286,9 +289,11 @@ struct server::implementation : boost::noncopyable
 		}
 	}
 		
-	void setup_controllers(const boost::property_tree::wptree& pt)
+	std::shared_ptr<caspar::IO::IProtocolStrategy> setup_controllers(const boost::property_tree::wptree& pt)
 	{		
 		using boost::property_tree::wptree;
+		std::shared_ptr<caspar::IO::IProtocolStrategy> first_amcp_ptr;
+
 		BOOST_FOREACH(auto& xml_controller, pt.get_child(L"configuration.controllers"))
 		{
 			try
@@ -299,10 +304,9 @@ struct server::implementation : boost::noncopyable
 				if(name == L"tcp")
 				{						
 					unsigned int port = xml_controller.second.get(L"port", 5250);
-					auto asyncbootstrapper = make_safe<IO::AsyncEventServer>(create_protocol(
-							protocol,
-							L"TCP Port " + boost::lexical_cast<std::wstring>(port)),
-							port);
+					auto prot_strategy = create_protocol(protocol, L"TCP Port " + boost::lexical_cast<std::wstring>(port));
+					if (!first_amcp_ptr) first_amcp_ptr = prot_strategy;
+					auto asyncbootstrapper = make_safe<IO::AsyncEventServer>(prot_strategy, port);
 					asyncbootstrapper->Start();
 					async_servers_.push_back(asyncbootstrapper);
 
@@ -322,6 +326,7 @@ struct server::implementation : boost::noncopyable
 
 					const auto amcp_ptr = create_protocol(protocol_name, 
 									L"Serial address " + boost::lexical_cast<std::wstring>(vidibus_address_int));
+					if (!first_amcp_ptr) first_amcp_ptr = amcp_ptr;
 
 					const auto client_ptr = std::make_shared<caspar::IO::ConsoleClientInfo>();
 
@@ -366,6 +371,8 @@ struct server::implementation : boost::noncopyable
 				CASPAR_LOG_CURRENT_EXCEPTION();
 			}
 		}
+
+		return first_amcp_ptr;
 	}
 
 	void setup_osc(const boost::property_tree::wptree& pt)
@@ -456,6 +463,21 @@ struct server::implementation : boost::noncopyable
 		BOOST_THROW_EXCEPTION(caspar_exception() << arg_name_info("name") << arg_value_info(narrow(name)) << msg_info("Invalid protocol"));
 	}
 
+	void call_initial_macro(std::shared_ptr<caspar::IO::IProtocolStrategy> amcp_ptr)
+	{
+		if (amcp_ptr)
+		{	
+			auto startup_macro = env::properties().get(L"configuration.startup-macro", L"");
+			if (!startup_macro.empty())
+			{
+				std::wstring cmd = L"MACRO " + startup_macro + L"\r\n";
+				auto client_info = std::make_shared<caspar::IO::StartupClientInfo>();
+				amcp_ptr->Parse(cmd.c_str(), cmd.length(), client_info);
+			}
+			else CASPAR_LOG(info) << "There is no startup-macro field in config -> skip startup macro";	
+		} else CASPAR_LOG(info) << "There are no amcp protocols -> skip startup macro";
+	}
+	
 	void start_initial_media_info_scan()
 	{
 		initial_media_info_thread_ = boost::thread([this]

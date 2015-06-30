@@ -64,7 +64,6 @@ public:
 	}
 
 	AMCPCommandPtr InterpretCommandString(const std::wstring& str, MessageParserState* pOutState=0);
-	void executeScriptSequence(std::vector<std::wstring> &seq);
 
 private:
 	friend class AMCPCommand;

@@ -113,14 +113,14 @@ class LoadCommand : public AMCPCommandBase<true, AddToQueue, 1>
 	bool DoExecute();
 };
 
-class ScriptCommand : public AMCPCommandBase<false, AddToQueue, 1>
+class MacroCommand : public AMCPCommandBase<false, AddToQueue, 1>
 {
-	std::wstring print() const { return L"ScriptCommand";}
+	std::wstring print() const { return L"MacroCommand";}
 	bool DoExecute();
-	AMCPProtocolStrategy* const protocol;
-	
+	AMCPProtocolStrategy* const protocol_;
+
 public:
-	ScriptCommand(AMCPProtocolStrategy *proto) : protocol(proto)
+	MacroCommand(AMCPProtocolStrategy *protocol) : protocol_(protocol)
 	{
 	}
 };

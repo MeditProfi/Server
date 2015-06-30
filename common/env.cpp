@@ -45,7 +45,6 @@ namespace caspar { namespace env {
 namespace fs = boost::filesystem;
 
 std::wstring media;
-std::wstring scripts;
 std::wstring log;
 std::wstring ftemplate;
 std::wstring data;
@@ -54,6 +53,7 @@ std::wstring mplayer_path;
 std::wstring mplayer_cmd;
 std::wstring mplayer_dbg;
 std::vector<std::wstring> mplayer_res_prefixes_;
+std::wstring macros;
 boost::property_tree::wptree pt;
 
 void check_is_configured()
@@ -73,11 +73,12 @@ void configure(const std::wstring& filename)
 
 		auto paths = pt.get_child(L"configuration.paths");
 		media = widen(paths.get(L"media-path", initialPath + L"\\media\\"));
-		scripts = widen(paths.get(L"scripts-path", initialPath + L"\\scripts\\"));
 		log = widen(paths.get(L"log-path", initialPath + L"\\log\\"));
 		ftemplate = fs::complete(fs::path(widen(paths.get(L"template-path", initialPath + L"\\template\\")))).wstring();		
 		data = widen(paths.get(L"data-path", initialPath + L"\\data\\"));
 		thumbnails = widen(paths.get(L"thumbnails-path", initialPath + L"\\thumbnails\\"));
+		macros = widen(paths.get(L"macros-path", initialPath + L"\\macros\\"));
+
 		mplayer_path = widen(paths.get(L"mplayer-path", initialPath + L"\\mplayer\\mplayer"));
 		mplayer_cmd = widen(paths.get(L"mplayer_cmd", L""));
 		mplayer_dbg = widen(paths.get(L"mplayer_dbg", L""));
@@ -97,6 +98,8 @@ void configure(const std::wstring& filename)
 			data.append(L"\\");
 		if(thumbnails.at(thumbnails.length()-1) != L'\\')
 			thumbnails.append(L"\\");
+		if (macros.at(macros.length() - 1) != L'\\')
+			macros.append(L"\\");
 
 		try
 		{
@@ -147,6 +150,10 @@ void configure(const std::wstring& filename)
 		auto thumbnails_path = fs::path(thumbnails);
 		if(!fs::exists(thumbnails_path))
 			fs::create_directory(thumbnails_path);
+
+		auto macros_path = boost::filesystem::wpath(macros);
+		if (!boost::filesystem::exists(macros_path))
+			boost::filesystem::create_directory(macros_path);
 	}
 	catch(...)
 	{
@@ -159,12 +166,6 @@ const std::wstring& media_folder()
 {
 	check_is_configured();
 	return media;
-}
-
-const std::wstring& scripts_folder()
-{
-	check_is_configured();
-	return scripts;
 }
 
 const std::wstring& log_folder()
@@ -213,6 +214,12 @@ const std::vector<std::wstring> &mplayer_res_prefixes()
 {
 	check_is_configured();
 	return mplayer_res_prefixes_;
+}
+
+const std::wstring& macros_folder()
+{
+	check_is_configured();
+	return macros;
 }
 
 #define QUOTE(str) #str
