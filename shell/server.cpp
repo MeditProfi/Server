@@ -65,6 +65,7 @@
 #include <protocol/util/AsyncEventServer.h>
 #include <protocol/util/stateful_protocol_strategy_wrapper.h>
 #include <protocol/osc/client.h>
+#include <protocol/vidibus/server.h>
 
 #include <boost/algorithm/string.hpp>
 #include <boost/lexical_cast.hpp>
@@ -119,6 +120,7 @@ struct server::implementation : boost::noncopyable
 	boost::thread								initial_media_info_thread_;
 	tbb::atomic<bool>							running_;
 	std::shared_ptr<thumbnail_generator>		thumbnail_generator_;
+	std::vector<vidibus::server>				vidibus_servers_;
 
 	implementation(const std::function<void (bool)>& shutdown_server_now)
 		: io_service_(create_running_io_service())
@@ -295,7 +297,7 @@ struct server::implementation : boost::noncopyable
 				auto protocol = xml_controller.second.get<std::wstring>(L"protocol");	
 
 				if(name == L"tcp")
-				{					
+				{						
 					unsigned int port = xml_controller.second.get(L"port", 5250);
 					auto asyncbootstrapper = make_safe<IO::AsyncEventServer>(create_protocol(
 							protocol,
@@ -306,6 +308,55 @@ struct server::implementation : boost::noncopyable
 
 					if (!primary_amcp_server_ && boost::iequals(protocol, L"AMCP"))
 						primary_amcp_server_ = asyncbootstrapper;
+				} 
+				else if (name == L"serial")
+				{
+					const auto port_str = xml_controller.second.get<std::wstring>(L"port", L"COM1");
+					const auto protocol_name = xml_controller.second.get(L"protocol", L"AMCP"); 
+					const auto baud_rate = xml_controller.second.get(L"baudrate", 9600); 
+					const auto flow_control_str = xml_controller.second.get<std::wstring>(L"flowcontrol", L"none"); 
+					const auto parity_str = xml_controller.second.get<std::wstring>(L"parity", L"none"); 
+					const auto stop_bits_str = xml_controller.second.get<std::wstring>(L"stopbits", L"one");
+					const auto character_size = xml_controller.second.get(L"databits", 8); 
+					const auto vidibus_address_int = xml_controller.second.get(L"address", 1);
+
+					const auto amcp_ptr = create_protocol(protocol_name, 
+									L"Serial address " + boost::lexical_cast<std::wstring>(vidibus_address_int));
+
+					const auto client_ptr = std::make_shared<caspar::IO::ConsoleClientInfo>();
+
+					vidibus_servers_.push_back(vidibus::server(narrow(port_str), vidibus_address_int, [=](const std::string& cmd)
+					{
+						auto wcmd = widen(cmd) + L"\r\n";
+						amcp_ptr->Parse(wcmd.c_str(), wcmd.length(), client_ptr);
+					}));
+
+					if (baud_rate > 0)
+						vidibus_servers_.back().set_baud_rate(baud_rate);
+
+					if (flow_control_str == L"none")
+						vidibus_servers_.back().set_flow_control(vidibus::server::flow_control::none);
+					else if (flow_control_str == L"software")
+						vidibus_servers_.back().set_flow_control(vidibus::server::flow_control::software);
+					else if (flow_control_str == L"hardware")
+						vidibus_servers_.back().set_flow_control(vidibus::server::flow_control::hardware);
+
+					if (parity_str == L"none")
+						vidibus_servers_.back().set_parity(vidibus::server::parity::none);
+					else if (parity_str == L"even")
+						vidibus_servers_.back().set_parity(vidibus::server::parity::even);
+					else if (parity_str == L"odd")
+						vidibus_servers_.back().set_parity(vidibus::server::parity::odd);
+
+					if (stop_bits_str == L"one")
+						vidibus_servers_.back().set_stop_bits(vidibus::server::stop_bits::one);
+					else if (stop_bits_str == L"onepointfive")
+						vidibus_servers_.back().set_stop_bits(vidibus::server::stop_bits::onepointfive);
+					else if (stop_bits_str == L"two")
+						vidibus_servers_.back().set_stop_bits(vidibus::server::stop_bits::two);
+
+					if (character_size > 0)
+						vidibus_servers_.back().set_character_size(character_size);
 				}
 				else
 					CASPAR_LOG(warning) << "Invalid controller: " << widen(name);	
