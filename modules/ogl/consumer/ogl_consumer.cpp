@@ -182,7 +182,7 @@ public:
 				sample_aspect_ratio,
 				AV_PIX_FMT_BGRA,
 				boost::assign::list_of(AV_PIX_FMT_BGRA),
-				format_desc.field_mode == core::field_mode::progressive || !config.auto_deinterlace ? "" : "format=pix_fmts=gbrp,YADIF=1:-1");
+				format_desc.field_mode == core::field_mode::progressive || !config.auto_deinterlace ? "" : "format=pix_fmts=gbrp,YADIF=0:-1");
 		}())
 	{		
 		if(format_desc_.format == core::video_format::ntsc && config_.aspect == configuration::aspect_4_3)
