@@ -41,6 +41,8 @@
 
 #include <tbb/concurrent_queue.h>
 
+#include <../../common/env.h>
+
 namespace caspar { namespace core {
 
 class layer_consumer : public write_frame_consumer
@@ -90,11 +92,14 @@ public:
 		return frame;
 	}
 
-	void block_until_first_frame_available()
+	void block_until_first_frame_available(int tout_sec)
 	{
-		if (!first_frame_available_.timed_wait(boost::posix_time::seconds(2)))
-			CASPAR_LOG(warning)
-					<< print() << L" Timed out while waiting for first frame";
+		if (tout_sec)
+		{
+			if (!first_frame_available_.timed_wait(boost::posix_time::seconds(tout_sec)))
+				CASPAR_LOG(warning)
+						<< print() << L" Timed out while waiting for first frame";
+		}
 	}
 };
 
@@ -121,7 +126,7 @@ public:
 		, frame_number_(0)
 	{
 		stage_->add_layer_consumer(this, layer_, consumer_);
-		consumer_->block_until_first_frame_available();
+		consumer_->block_until_first_frame_available( get_layer_producer_tout() );
 		CASPAR_LOG(info) << print() << L" Initialized";
 	}
 
@@ -129,6 +134,11 @@ public:
 	{
 		stage_->remove_layer_consumer(this, layer_);
 		CASPAR_LOG(info) << print() << L" Uninitialized";
+	}
+
+	int get_layer_producer_tout()
+	{
+		return env::properties().get(L"configuration.layer-producer.timeout-sec", 2);
 	}
 
 	// frame_producer

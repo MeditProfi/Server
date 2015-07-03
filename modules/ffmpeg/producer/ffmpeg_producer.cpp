@@ -60,6 +60,8 @@
 #include <memory>
 #include <queue>
 
+#include "../../mplayer/mplayer.h"
+
 namespace caspar { namespace ffmpeg {
 
 std::wstring get_relative_or_original(
@@ -576,6 +578,9 @@ safe_ptr<core::frame_producer> create_producer(
 	auto resource_type = FFMPEG_FILE;
 	auto tokens = core::parameters::protocol_split(params.at_original(0));
 	auto filename = params.at_original(0);
+
+	if ((mplayer::is_url_address(filename)) && (env::mplayer_bin_path() != L"")) return core::frame_producer::empty();	
+
 	if (!tokens[0].empty())
 	{
 		if (tokens[0] == L"dshow")

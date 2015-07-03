@@ -49,6 +49,7 @@
 #include <modules/newtek/newtek.h>
 #include <modules/image/image.h>
 #include <modules/image/consumer/image_consumer.h>
+#include <modules/mplayer/mplayer.h>
 
 #include <modules/oal/consumer/oal_consumer.h>
 #include <modules/bluefish/consumer/bluefish_consumer.h>
@@ -131,6 +132,9 @@ struct server::implementation : boost::noncopyable
 		
 		ffmpeg::init(media_info_repo_);
 		CASPAR_LOG(info) << L"Initialized ffmpeg module.";
+		
+		mplayer::init();
+		CASPAR_LOG(info) << L"Initialized mplayer module.";
 							  
 		bluefish::init();	  
 		CASPAR_LOG(info) << L"Initialized bluefish module.";

@@ -24,6 +24,7 @@
 #define __AMCPCOMMANDSIMPL_H__
 
 #include "AMCPCommand.h"
+#include "AMCPProtocolStrategy.h"
 
 namespace caspar {
 
@@ -111,6 +112,19 @@ class LoadCommand : public AMCPCommandBase<true, AddToQueue, 1>
 	std::wstring print() const { return L"LoadCommand";}
 	bool DoExecute();
 };
+
+class ScriptCommand : public AMCPCommandBase<false, AddToQueue, 1>
+{
+	std::wstring print() const { return L"ScriptCommand";}
+	bool DoExecute();
+	AMCPProtocolStrategy* const protocol;
+	
+public:
+	ScriptCommand(AMCPProtocolStrategy *proto) : protocol(proto)
+	{
+	}
+};
+
 
 class LoadbgCommand : public AMCPCommandBase<true, AddToQueue, 1>
 {

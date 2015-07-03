@@ -33,6 +33,9 @@
 #include <boost/property_tree/xml_parser.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/thread/once.hpp>
+#include <boost/algorithm/string/split.hpp>  
+#include <boost/algorithm/string.hpp> 
+#include <boost/algorithm/string/classification.hpp> 
 
 #include <functional>
 #include <iostream>
@@ -42,10 +45,15 @@ namespace caspar { namespace env {
 namespace fs = boost::filesystem;
 
 std::wstring media;
+std::wstring scripts;
 std::wstring log;
 std::wstring ftemplate;
 std::wstring data;
 std::wstring thumbnails;
+std::wstring mplayer_path;
+std::wstring mplayer_cmd;
+std::wstring mplayer_dbg;
+std::vector<std::wstring> mplayer_res_prefixes_;
 boost::property_tree::wptree pt;
 
 void check_is_configured()
@@ -65,10 +73,18 @@ void configure(const std::wstring& filename)
 
 		auto paths = pt.get_child(L"configuration.paths");
 		media = widen(paths.get(L"media-path", initialPath + L"\\media\\"));
+		scripts = widen(paths.get(L"scripts-path", initialPath + L"\\scripts\\"));
 		log = widen(paths.get(L"log-path", initialPath + L"\\log\\"));
 		ftemplate = fs::complete(fs::path(widen(paths.get(L"template-path", initialPath + L"\\template\\")))).wstring();		
 		data = widen(paths.get(L"data-path", initialPath + L"\\data\\"));
 		thumbnails = widen(paths.get(L"thumbnails-path", initialPath + L"\\thumbnails\\"));
+		mplayer_path = widen(paths.get(L"mplayer-path", initialPath + L"\\mplayer\\mplayer"));
+		mplayer_cmd = widen(paths.get(L"mplayer_cmd", L""));
+		mplayer_dbg = widen(paths.get(L"mplayer_dbg", L""));
+
+		std::wstring pref_str = widen(paths.get(L"mplayer_res_prefixes", L""));
+		std::vector<std::wstring> res;
+		boost::algorithm::split(mplayer_res_prefixes_, pref_str, boost::algorithm::is_any_of(L";"));
 
 		//Make sure that all paths have a trailing backslash
 		if(media.at(media.length()-1) != L'\\')
@@ -145,6 +161,12 @@ const std::wstring& media_folder()
 	return media;
 }
 
+const std::wstring& scripts_folder()
+{
+	check_is_configured();
+	return scripts;
+}
+
 const std::wstring& log_folder()
 {
 	check_is_configured();
@@ -167,6 +189,30 @@ const std::wstring& thumbnails_folder()
 {
 	check_is_configured();
 	return thumbnails;
+}
+
+const std::wstring& mplayer_bin_path()
+{
+	check_is_configured();
+	return mplayer_path;
+}
+
+const std::wstring& mplayer_command()
+{
+	check_is_configured();
+	return mplayer_cmd;
+}
+
+const std::wstring& mplayer_debug()
+{
+	check_is_configured();
+	return mplayer_dbg;
+}
+
+const std::vector<std::wstring> &mplayer_res_prefixes()
+{
+	check_is_configured();
+	return mplayer_res_prefixes_;
 }
 
 #define QUOTE(str) #str

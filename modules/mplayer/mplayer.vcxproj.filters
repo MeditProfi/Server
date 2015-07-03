@@ -1,0 +1,107 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="source">
+      <UniqueIdentifier>{c9454245-e85a-45ba-960f-203b00d18454}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="source\producer">
+      <UniqueIdentifier>{c5a94fd1-4552-4f6d-97cd-24e44e662e0f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="source\producer\muxer">
+      <UniqueIdentifier>{bfeb0ca6-10c9-46dc-b54a-5e860ae48983}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="source\producer\debug">
+      <UniqueIdentifier>{724eb6fc-e427-469e-a9e8-cdfe8dda6d79}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="source\producer\mplayerproc">
+      <UniqueIdentifier>{fcec3b1f-b263-4d41-801e-1a1199d88730}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="source\producer\pipe">
+      <UniqueIdentifier>{96dda12a-7941-40cc-8e30-adc8d94a229e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="source\producer\input">
+      <UniqueIdentifier>{6cddb74f-ace6-4406-b3cc-c872db552815}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="source\producer\fake_consumer">
+      <UniqueIdentifier>{2a767059-eddb-4b36-9da0-8790384cbcad}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="StdAfx.cpp" />
+    <ClCompile Include="mplayer.cpp">
+      <Filter>source</Filter>
+    </ClCompile>
+    <ClCompile Include="producer\mplayer_producer.cpp">
+      <Filter>source\producer</Filter>
+    </ClCompile>
+    <ClCompile Include="producer\pipe\pipe.cpp">
+      <Filter>source\producer\pipe</Filter>
+    </ClCompile>
+    <ClCompile Include="producer\muxer\muxer.cpp">
+      <Filter>source\producer\muxer</Filter>
+    </ClCompile>
+    <ClCompile Include="producer\mplayerproc\mplayerproc.cpp">
+      <Filter>source\producer\mplayerproc</Filter>
+    </ClCompile>
+    <ClCompile Include="producer\input\input_audio.cpp">
+      <Filter>source\producer\input</Filter>
+    </ClCompile>
+    <ClCompile Include="producer\input\input_video.cpp">
+      <Filter>source\producer\input</Filter>
+    </ClCompile>
+    <ClCompile Include="producer\debug\debug.cpp">
+      <Filter>source\producer\debug</Filter>
+    </ClCompile>
+    <ClCompile Include="mplayer_utils.cpp">
+      <Filter>source</Filter>
+    </ClCompile>
+    <ClCompile Include="producer\fake_consumer\fake_consumer.cpp">
+      <Filter>source\producer\fake_consumer</Filter>
+    </ClCompile>
+    <ClCompile Include="producer\input\AudioDroper.cpp">
+      <Filter>source\producer\input</Filter>
+    </ClCompile>
+    <ClCompile Include="producer\debug\mywavfile.cpp">
+      <Filter>source\producer\debug</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="producer\mplayer_producer.h">
+      <Filter>source\producer</Filter>
+    </ClInclude>
+    <ClInclude Include="StdAfx.h" />
+    <ClInclude Include="mplayer.h">
+      <Filter>source</Filter>
+    </ClInclude>
+    <ClInclude Include="producer\pipe\pipe.h">
+      <Filter>source\producer\pipe</Filter>
+    </ClInclude>
+    <ClInclude Include="producer\muxer\muxer.h">
+      <Filter>source\producer\muxer</Filter>
+    </ClInclude>
+    <ClInclude Include="producer\mplayerproc\mplayerproc.h">
+      <Filter>source\producer\mplayerproc</Filter>
+    </ClInclude>
+    <ClInclude Include="producer\input\input_audio.h">
+      <Filter>source\producer\input</Filter>
+    </ClInclude>
+    <ClInclude Include="producer\input\input_video.h">
+      <Filter>source\producer\input</Filter>
+    </ClInclude>
+    <ClInclude Include="producer\debug\debug.h">
+      <Filter>source\producer\debug</Filter>
+    </ClInclude>
+    <ClInclude Include="mplayer_utils.h">
+      <Filter>source</Filter>
+    </ClInclude>
+    <ClInclude Include="producer\fake_consumer\fake_consumer.h">
+      <Filter>source\producer\fake_consumer</Filter>
+    </ClInclude>
+    <ClInclude Include="producer\input\AudioDroper.h">
+      <Filter>source\producer\input</Filter>
+    </ClInclude>
+    <ClInclude Include="producer\debug\mywavfile.h">
+      <Filter>source\producer\debug</Filter>
+    </ClInclude>
+  </ItemGroup>
+</Project>

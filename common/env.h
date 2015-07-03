@@ -24,17 +24,23 @@
 #include <boost/property_tree/ptree.hpp>
 
 #include <string>
+#include <vector>
 
 namespace caspar { namespace env {
 
 void configure(const std::wstring& filename);
 
 const std::wstring& media_folder();
+const std::wstring& scripts_folder();
 const std::wstring& log_folder();
 const std::wstring& template_folder();
 const std::wstring& data_folder();
 const std::wstring& thumbnails_folder();
 const std::wstring& version();
+const std::wstring& mplayer_bin_path();
+const std::wstring& mplayer_command();
+const std::wstring& mplayer_debug();
+const std::vector<std::wstring> &mplayer_res_prefixes();
 
 const boost::property_tree::wptree& properties();
 

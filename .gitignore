@@ -87,3 +87,14 @@
 /modules/newtek/bin
 /modules/newtek/tmp
 /dependencies/cef
+/dependencies/WinDDK
+/dependencies/boost
+*.bak
+*.obj
+*.tlog
+*.log
+*.suo
+*.sdf
+*.pdb
+*.pch
+*.lastbuildstate

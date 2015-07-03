@@ -55,4 +55,14 @@ struct ConsoleClientInfo : public caspar::IO::ClientInfo
 	virtual std::wstring print() const {return L"Console";}
 };
 
+struct ScriptClientInfo : public caspar::IO::ClientInfo 
+{
+	void Send(const std::wstring& data)
+	{
+		std::wcout << (L"#" + caspar::log::replace_nonprintable_copy(data, L'?'));
+	}
+	void Disconnect(){}
+	virtual std::wstring print() const {return L"Script";}	
+};
+
 }}

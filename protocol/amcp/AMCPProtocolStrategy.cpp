@@ -333,6 +333,7 @@ AMCPCommandPtr AMCPProtocolStrategy::CommandFactory(const std::wstring& str)
 	else if(s == TEXT("SWAP"))			return std::make_shared<SwapCommand>();
 	else if(s == TEXT("ROUTE"))			return std::make_shared<RouteCommand>();
 	else if(s == TEXT("LOAD"))			return std::make_shared<LoadCommand>();
+	else if(s == TEXT("SCRIPT"))		return std::make_shared<ScriptCommand>(this);
 	else if(s == TEXT("LOADBG"))		return std::make_shared<LoadbgCommand>();
 	else if(s == TEXT("ADD"))			return std::make_shared<AddCommand>();
 	else if(s == TEXT("REMOVE"))		return std::make_shared<RemoveCommand>();
@@ -435,6 +436,19 @@ std::size_t AMCPProtocolStrategy::TokenizeMessage(const std::wstring& message, s
 	}
 
 	return pTokenVector->size();
+}
+
+void AMCPProtocolStrategy::executeScriptSequence(std::vector<std::wstring> &seq)
+{
+	CASPAR_LOG(info) << "AMCPProtocolStrategy::executeScriptSequence";
+
+	auto script_client = std::make_shared<caspar::IO::ScriptClientInfo>();
+
+	for (int i = 0; i < seq.size(); i++)
+	{
+		CASPAR_LOG(info) << L"execute: " << seq[i].c_str();
+		this->Parse(seq[i].c_str(), seq[i].length(), script_client);
+	}
 }
 
 }	//namespace amcp

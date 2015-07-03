@@ -54,6 +54,8 @@
 #include <cef_client.h>
 #include <cef_render_handler.h>
 
+#include "../../mplayer/mplayer.h"
+
 #include <queue>
 
 #include "html.h"
@@ -570,6 +572,8 @@ namespace caspar {
 			const core::parameters& params)
 		{
 			const auto filename = env::template_folder() + L"\\" + params.at_original(0) + L".html";
+
+			if (mplayer::is_url_address(params.at_original(0))) return core::frame_producer::empty();
 	
 			if (!boost::filesystem::exists(filename) && params.at(0) != L"[HTML]")
 				return core::frame_producer::empty();
