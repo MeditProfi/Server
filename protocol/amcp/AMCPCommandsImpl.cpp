@@ -2263,6 +2263,31 @@ bool InfoCommand::DoExecute()
 			}
 			boost::property_tree::xml_parser::write_xml(replyString, info, w);
 		}
+		else if(_parameters.size() >= 2 && _parameters[0] == L"LAYERS")
+		{
+			replyString << TEXT("201 INFO OK\r\n");
+			boost::property_tree::wptree info;
+
+			std::vector<std::wstring> split;
+			for (size_t i = 1; i < _parameters.size(); i++)
+			{
+				boost::split(split, _parameters[i], boost::is_any_of("-"));
+				if (split.size() == 2)
+				{
+					int channel = boost::lexical_cast<int>(split[0]) - 1;
+					int layer = boost::lexical_cast<int>(split[1]);
+					auto child = channels_.at(channel)->stage()->info(layer).get();
+					child.add(L"index", layer);
+					child.add(L"channel", channel + 1);
+					info.add_child(L"layer", child);
+				} 
+				else
+				{
+					BOOST_THROW_EXCEPTION( invalid_argument() << msg_info("invalid INFO LAYERS parameter") );
+				}
+			}
+			boost::property_tree::xml_parser::write_xml(replyString, info, w);
+		}
 		else // channel
 		{			
 			if(_parameters.size() >= 1)
