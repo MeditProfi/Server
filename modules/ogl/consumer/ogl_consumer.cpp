@@ -75,6 +75,9 @@ extern "C"
 typedef int (*PFNWGLEXTGETSWAPINTERVALPROC) (void);
  
 namespace caspar { namespace ogl {
+
+tbb::atomic<unsigned int> windows_grid_x;
+tbb::atomic<unsigned int> windows_grid_y;
 		
 enum stretch
 {
@@ -102,6 +105,9 @@ struct configuration
 	aspect_ratio	aspect;	
 	bool			vsync;
 	bool			borderless;
+	int				forced_width;
+	int				forced_height;
+	bool			windows_grid;
 
 	configuration()
 		: name(L"Screen consumer")
@@ -113,6 +119,9 @@ struct configuration
 		, aspect(aspect_invalid)
 		, vsync(false)
 		, borderless(false)
+		, forced_width(0)
+		, forced_height(0)
+		, windows_grid(false)
 	{
 	}
 };
@@ -132,6 +141,7 @@ struct ogl_consumer : boost::noncopyable
 	unsigned int			screen_y_;
 	unsigned int			screen_width_;
 	unsigned int			screen_height_;
+	const unsigned int		window_grid_margin_;
 	size_t					square_width_;
 	size_t					square_height_;				
 	
@@ -161,6 +171,7 @@ public:
 		, pbos_(2, 0)	
 		, screen_width_(format_desc.width)
 		, screen_height_(format_desc.height)
+		, window_grid_margin_(10)
 		, square_width_(format_desc.square_width)
 		, square_height_(format_desc.square_height)
 		, pts_(0)
@@ -218,10 +229,21 @@ public:
 		if(!EnumDisplaySettings(displayDevices[config_.screen_index].DeviceName, ENUM_CURRENT_SETTINGS, &devmode))
 			CASPAR_LOG(warning) << print() << L" Could not find display settings for screen-index: " << config_.screen_index;
 		
-		screen_x_		= devmode.dmPosition.x;
-		screen_y_		= devmode.dmPosition.y;
-		screen_width_	= config_.windowed ? square_width_ : devmode.dmPelsWidth;
-		screen_height_	= config_.windowed ? square_height_ : devmode.dmPelsHeight;
+		screen_x_		= config_.windows_grid ? windows_grid_x : devmode.dmPosition.x;
+		screen_y_		= config_.windows_grid ? windows_grid_y : devmode.dmPosition.y;
+		screen_width_	= config_.forced_width ? config_.forced_width : (config_.windowed ? square_width_ : devmode.dmPelsWidth);
+		screen_height_	= config_.forced_height ? config_.forced_height : (config_.windowed ? square_height_ : devmode.dmPelsHeight);
+
+		if (config_.windows_grid)
+		{
+			windows_grid_x += screen_width_ + window_grid_margin_;
+			if (windows_grid_x >= devmode.dmPelsWidth) 
+			{
+				windows_grid_y += screen_height_ + window_grid_margin_;
+				windows_grid_x = 0;
+			}
+			//TODO - what if forced_width/forced_height are different from one consumer to another one?
+		}
 
 		is_running_ = true;
 		current_presentation_age_ = 0;
@@ -622,6 +644,9 @@ safe_ptr<core::frame_consumer> create_consumer(const boost::property_tree::wptre
 	config.auto_deinterlace	= ptree.get(L"auto-deinterlace", config.auto_deinterlace);
 	config.vsync			= ptree.get(L"vsync", config.vsync);
 	config.borderless       = ptree.get(L"borderless", config.borderless);
+	config.forced_width     = ptree.get(L"forced-width", config.forced_width);
+	config.forced_height    = ptree.get(L"forced-height", config.forced_height);
+	config.windows_grid     = ptree.get(L"windows-grid", config.windows_grid);
 
 	auto stretch_str = ptree.get(L"stretch", L"default");
 	if(stretch_str == L"uniform")
