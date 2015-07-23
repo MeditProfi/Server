@@ -1407,10 +1407,46 @@ bool ClearCommand::DoExecute()
 	return true;
 }
 
+bool GetImageCommand::DoExecute()
+{
+	try
+	{
+		std::wstringstream replyString;
+		replyString << TEXT("201 GETIMAGE OK\r\n");
+
+		parameters params;
+		params.push_back(L"IMAGE_BASE64");
+		for (int i = 0; i < _parameters.size(); i++) params.push_back(_parameters.at_original(i));
+
+		auto consumer = create_consumer(params);
+		GetChannel()->output()->add(consumer);
+
+		auto res = consumer->get_custom_data(); //blocks, timeout
+
+		//replyString << std::string(res.begin(), res.end()).c_str(); causes too large memory consumption - it's strange... TODO: find out the reason
+		for (int i = 0; i < res.size(); i++)
+		{
+			if (res[i])
+				replyString << res[i];
+		}
+
+		replyString << TEXT("\r\n");
+		SetReplyString(replyString.str());
+		return true;
+	}
+	catch(...)
+	{
+		CASPAR_LOG_CURRENT_EXCEPTION();
+		SetReplyString(TEXT("501 GETIMAGE FAILED\r\n"));
+		return false;
+	}
+}
+
 bool PrintCommand::DoExecute()
 {
 	parameters params;
 	params.push_back(L"IMAGE");
+	if (_parameters.size() > 0) params.push_back(_parameters.at_original(0));
 	GetChannel()->output()->add(create_consumer(params));
 		
 	SetReplyString(TEXT("202 PRINT OK\r\n"));

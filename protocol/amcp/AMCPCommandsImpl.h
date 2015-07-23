@@ -168,6 +168,12 @@ class PrintCommand : public AMCPCommandBase<true, AddToQueue, 0>
 	bool DoExecute();
 };
 
+class GetImageCommand : public AMCPCommandBase<true, AddToQueue, 0>
+{
+	std::wstring print() const { return L"GetImageCommand";}
+	bool DoExecute();
+};
+
 class LogCommand : public AMCPCommandBase<false, AddToQueue, 0>
 {
 	std::wstring print() const { return L"LogCommand";}

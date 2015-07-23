@@ -27,6 +27,7 @@
 namespace caspar {
 
 std::string to_base64(const char* data, size_t length);
+std::vector<char> to_base64_alternative(BYTE* bytes_to_encode, unsigned int in_len);
 std::vector<unsigned char> from_base64(const std::string& data);
 
 }

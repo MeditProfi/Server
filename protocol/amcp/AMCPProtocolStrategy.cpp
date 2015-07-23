@@ -343,6 +343,7 @@ AMCPCommandPtr AMCPProtocolStrategy::CommandFactory(const std::wstring& str)
 	else if(s == TEXT("STOP"))			return std::make_shared<StopCommand>();
 	else if(s == TEXT("CLEAR"))			return std::make_shared<ClearCommand>();
 	else if(s == TEXT("PRINT"))			return std::make_shared<PrintCommand>();
+	else if(s == TEXT("GETIMAGE"))		return std::make_shared<GetImageCommand>();
 	else if(s == TEXT("LOG"))			return std::make_shared<LogCommand>();
 	else if(s == TEXT("CG"))			return std::make_shared<CGCommand>();
 	else if(s == TEXT("DATA"))			return std::make_shared<DataCommand>();
