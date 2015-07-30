@@ -197,8 +197,11 @@ class DataCommand : public AMCPCommandBase<false, AddToQueue, 1>
 	bool DoExecute();
 	bool DoExecuteStore();
 	bool DoExecuteRetrieve();
+	bool DoExecuteRetrieveAll();
 	bool DoExecuteRemove();
+	bool DoExecuteRemoveAll();
 	bool DoExecuteList();
+	boost::property_tree::wptree DataToXml(std::wstring folder);
 };
 
 class ThumbnailCommand : public AMCPCommandBase<false, AddToQueue, 1>

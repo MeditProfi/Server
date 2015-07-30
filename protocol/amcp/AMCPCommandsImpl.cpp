@@ -1884,8 +1884,12 @@ bool DataCommand::DoExecute()
 		return DoExecuteStore();
 	else if(command == TEXT("RETRIEVE"))
 		return DoExecuteRetrieve();
+	else if(command == TEXT("RETRIEVE_ALL"))
+		return DoExecuteRetrieveAll();
 	else if(command == TEXT("REMOVE"))
 		return DoExecuteRemove();
+	else if(command == TEXT("REMOVE_ALL"))
+		return DoExecuteRemoveAll();
 	else if(command == TEXT("LIST"))
 		return DoExecuteList();
 
@@ -1969,6 +1973,53 @@ bool DataCommand::DoExecuteRetrieve()
 	return true;
 }
 
+boost::property_tree::wptree DataCommand::DataToXml(std::wstring folder)
+{
+	boost::property_tree::wptree xml;
+	for (boost::filesystem::directory_iterator itr(folder), end; itr != end; ++itr)
+	{
+		if(boost::filesystem::is_regular_file(itr->path()))
+		{
+			if(!boost::iequals(itr->path().extension().wstring(), L".ftd"))
+				continue;
+
+			xml.add(itr->path().stem().wstring(), read_file(itr->path()));
+		}
+		else if (boost::filesystem::is_directory(itr->path()))
+		{
+			xml.add_child(itr->path().stem().wstring(), DataToXml(itr->path().wstring()));
+		}
+	}
+
+	return xml;
+}
+
+bool DataCommand::DoExecuteRetrieveAll() 
+{
+	std::wstringstream reply;
+	boost::property_tree::wptree xml;
+
+	try
+	{
+		auto folder = (_parameters.size() < 2) ? env::data_folder() : env::data_folder() + _parameters[1];
+
+		xml.add_child(L"data", DataToXml(folder));
+		reply << TEXT("201 DATA RETRIEVE_ALL OK\r\n");
+		boost::property_tree::xml_writer_settings<std::wstring> w(' ', 3);
+		boost::property_tree::write_xml(reply, xml, w);
+
+		reply << "\r\n";
+		SetReplyString(reply.str());
+		return true;
+	}
+	catch (...)
+	{
+		CASPAR_LOG_CURRENT_EXCEPTION();
+		SetReplyString(TEXT("501 DATA RETRIEVE_ALL FAILED\r\n"));
+		return false;
+	}
+}
+
 bool DataCommand::DoExecuteRemove() 
 { 
 	if (_parameters.size() < 2) 
@@ -1996,6 +2047,38 @@ bool DataCommand::DoExecuteRemove()
 	SetReplyString(TEXT("201 DATA REMOVE OK\r\n"));
 
 	return true;
+}
+
+bool DataCommand::DoExecuteRemoveAll()
+{
+	try
+	{
+		auto folder = (_parameters.size() < 2) ? env::data_folder() : env::data_folder() + _parameters[1];
+
+		if (!boost::filesystem::exists(folder)) 
+		{
+			SetReplyString(TEXT("404 DATA REMOVE_ALL ERROR\r\n"));
+			return false;
+		} 
+
+		for (boost::filesystem::directory_iterator itr(folder), end; itr != end; ++itr)
+		{
+			if (!boost::filesystem::remove_all(itr->path()))
+			{
+				SetReplyString(TEXT("403 DATA REMOVE_ALL ERROR\r\n"));
+				return false;
+			}
+		}
+
+		SetReplyString(TEXT("202 DATA REMOVE_ALL OK\r\n"));
+		return true;
+	}
+	catch (...)
+	{
+		CASPAR_LOG_CURRENT_EXCEPTION();
+		SetReplyString(TEXT("501 DATA REMOVE_ALL FAILED\r\n"));
+		return false;
+	}
 }
 
 bool DataCommand::DoExecuteList() 
