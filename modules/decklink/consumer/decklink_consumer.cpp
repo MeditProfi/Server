@@ -329,6 +329,9 @@ public:
 		
 		try
 		{
+			if (result != bmdOutputFrameCompleted)
+				CASPAR_LOG(error) << "decklink consumer ch " << channel_index_ << " error: ScheduledFrameCompleted result =  " << result;
+	
 			auto dframe = reinterpret_cast<decklink_frame*>(completed_frame);
 			current_presentation_delay_ = dframe->get_age_millis();
 			++scheduled_frames_completed_;
