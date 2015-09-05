@@ -49,7 +49,11 @@ struct input_video::implementation : boost::noncopyable
 		doread_ = false;
 
 		empty_frames_ = empty_mode;
-		if (empty_frames_) mlg("no video mode");
+		if (empty_frames_) 
+		{
+			mlg("no video mode");
+			cmn_->in_fps_ = 25;
+		}
 
 		mlg("out fps = " << cmn_->out_fps_);
 	}
