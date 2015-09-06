@@ -89,5 +89,5 @@ void free_av_context(AVFormatContext *ctx)
 bool enable_debug_log = false;
 bool enable_trace_log = false;
 bool enable_fps_log = false;
-
+bool enable_mplayer_log = false;
 }}

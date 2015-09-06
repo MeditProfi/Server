@@ -76,6 +76,7 @@ struct mplayer_exception : virtual caspar_exception {};
 extern bool enable_debug_log;
 extern bool enable_trace_log;
 extern bool enable_fps_log;
+extern bool enable_mplayer_log;
 
 #define mdb(...)	{ if (enable_debug_log) CASPAR_LOG(info) << "rtmp: " << __VA_ARGS__; } 
 #define mdb2 mdb

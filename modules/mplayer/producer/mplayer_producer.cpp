@@ -507,7 +507,7 @@ safe_ptr<core::frame_producer> create_producer(
 	enable_debug_log = (d.find(L"db") != std::wstring::npos);
 	enable_trace_log = (d.find(L"tr") != std::wstring::npos);
 	enable_fps_log = (d.find(L"fps") != std::wstring::npos);
-
+	enable_mplayer_log = (d.find(L"stdoutlog") != std::wstring::npos);
 
 	mplayer_producer_params prm;
 	prm.resource_name = resource_name;

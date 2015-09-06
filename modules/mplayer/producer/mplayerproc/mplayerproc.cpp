@@ -34,6 +34,9 @@ struct mplayer_process::implementation : boost::noncopyable
 	double								prev_frame_dt_;
 	double								force_in_fps_;
 	std::string							opt_params_;
+	ofstream							mplayer_log_file;
+	DWORD								last_mplayer_log_flush_time;
+	DWORD								mplayer_log_flush_period;
 
 
 	HANDLE stdout_read_;
@@ -100,6 +103,8 @@ struct mplayer_process::implementation : boost::noncopyable
 		});	
 	}
 #endif
+		if (enable_mplayer_log) open_mplayer_log();
+		mplayer_log_flush_period = env::properties().get(L"configuration.paths.mplayer_log_flush_period", 1000);
 	}
 
 	void thread_stdout()
@@ -547,6 +552,56 @@ struct mplayer_process::implementation : boost::noncopyable
 		return 0;
 	}
 
+	string current_time()
+	{
+		const boost::posix_time::ptime now = boost::posix_time::microsec_clock::local_time();
+		const boost::posix_time::time_duration td = now.time_of_day();
+
+		const int64_t hours        = td.hours();
+		const int64_t minutes      = td.minutes();
+		const int64_t seconds      = td.seconds();
+		
+		
+		const int64_t milliseconds = td.total_milliseconds() - ((hours * 3600 + minutes * 60 + seconds) * 1000);
+
+		return  boost::str(
+							boost::format("%02d.%02d.%04d   %02d:%02d:%02d.%03d")
+							% now.date().day()
+							% now.date().month()
+							% now.date().year()
+							% hours
+							% minutes
+							% seconds
+							% milliseconds);
+	}
+
+	void open_mplayer_log()
+	{
+		string now_allowed_symbols = "\\/:*?\"<>| \r\n";
+
+		string curtime = current_time();
+		curtime = boost::replace_if(curtime, boost::is_any_of(now_allowed_symbols), '.');
+
+		string url = resource_name_;
+		url = boost::replace_if(url, boost::is_any_of(now_allowed_symbols), '_');
+
+		string logname = narrow(env::log_folder()) + "\\mplayer_" + curtime + "_" + url + ".log";
+		mlg("mplayer stdout log file = " << logname);
+
+		mplayer_log_file.open(logname);
+		last_mplayer_log_flush_time = GetTickCount();
+	}
+
+	void append_to_mplayer_log(string data)
+	{
+		boost::trim(data);
+		if (data.size() > 0)
+		{
+			mplayer_log_file << "[" << current_time() << "] " << data << "\n";
+			if (GetTickCount() - last_mplayer_log_flush_time >= mplayer_log_flush_period) mplayer_log_file.flush();
+		}
+	}
+
 	void read_mplayer_params()
 	{
 		char buf[MPLAYER_STDOUT_BUFSZ];
@@ -578,6 +633,8 @@ struct mplayer_process::implementation : boost::noncopyable
 			}
 			else
 			{
+				if (enable_mplayer_log)	append_to_mplayer_log(outbuf_);
+
 				string val; 
 				char type = parse_mplayer_string(outbuf_, val);
 
