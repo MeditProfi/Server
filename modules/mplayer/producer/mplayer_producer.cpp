@@ -61,6 +61,9 @@ struct mplayer_producer_params
 	double					drop_frames_interval;
 	AudioDroperCtorParams   audioDroperParams;
 	long					unique_num;
+	bool					enable_video_dup;
+	int						unsync_patience_frames;
+	bool					do_not_audio_click;
 };
 
 struct mplayer_producer : public core::frame_producer
@@ -93,6 +96,7 @@ struct mplayer_producer : public core::frame_producer
 	const double							drop_frames_interval_;
 	double									drop_ctr_;
 	bool									do_drop_;
+	const bool								enable_video_dup_;
 
 
 		
@@ -105,8 +109,8 @@ public:
 		: frame_factory_(frame_factory)
 		, muxer_(makeMuxer(params.width, params.height, params.delay))
 		, last_frame_(core::basic_frame::empty())
-		, cmn_(new common_input_data(toStdStr(params.resource_name), frame_factory->get_video_format_desc(), params.buff_time_max, params.buff_time_enough, params.width, params.height, params.vfps, params.vfps_vals_list))
-		, mplayer_process_( new mplayer_process(params.unique_num, toStdStr(params.resource_name), SCacheSize, cmn_, params.infps, params.opt_params, params.vfps_jt))
+		, cmn_(new common_input_data(toStdStr(params.resource_name), frame_factory->get_video_format_desc(), params.buff_time_max, params.buff_time_enough, params.width, params.height, params.vfps, params.vfps_vals_list, params.unsync_patience_frames, params.do_not_audio_click))
+		, mplayer_process_( new mplayer_process(params.unique_num, toStdStr(params.resource_name), SCacheSize, cmn_, params.infps, params.opt_params, params.vfps_jt, params.enable_video_dup))
 		, audio_input_( new input_audio(params.unique_num, mplayer_process_, cmn_, params.audioDroperParams, params.noaudio ) )
 		, video_input_( new input_video(params.unique_num, mplayer_process_, cmn_, params.novideo ) )
 		, fake_mplayer_consumer_( new fake_mplayer_consumer(params.unique_num, toStdStr(params.resource_name), this , cmn_->out_fps_) )
@@ -119,6 +123,7 @@ public:
 		, buffer_overflow_time_max(params.bot_max)
 		, sync_frames_(params.syncfr)
 		, drop_frames_interval_(params.drop_frames_interval)
+		, enable_video_dup_(params.enable_video_dup)
 	{
 		cmn_->video_input_ = video_input_;
 		cmn_->audio_input_ = audio_input_;
@@ -156,7 +161,8 @@ public:
 														"drop min interval ms = " << drop_frames_interval_ << "\n" <<
 														vfps_vals_desc.c_str() << "\n" <<
 														"optional mplayer params = \"" << params.opt_params.c_str() << "\"\n" <<
-														"delay frames " << params.delay << "\n"
+														"delay frames " << params.delay << "\n"  <<
+														"enable video dup " << params.enable_video_dup << "\n"	
 														);
 
 
@@ -234,8 +240,24 @@ public:
 		while (temptime_ >= tempstep_)
 		{
 			mtr("mplayer receive - pop video...");
-			videook = video_input_->try_pop(video);
-			if (videook) last_video_buffer_ = video;
+			
+			bool dopop = true;
+			if ( enable_video_dup_ && (last_video_buffer_ != nullptr) )
+			{ 
+				if (cmn_->get_video_late_frames() > 0) 
+				{
+					mdb("             duplicate video frame");
+					dopop = false;
+					cmn_->decrease_video_late_frames();
+					cmn_->cancel_wait_unsync();
+				}
+			}
+		
+			if (dopop) 
+			{
+				videook = video_input_->try_pop(video);
+				if (videook) last_video_buffer_ = video;
+			}
 			temptime_ -= (1000.0f / video_input_->fps());
 		}
 
@@ -257,6 +279,7 @@ public:
 
 		if (videook) 
 		{
+			if (last_video_buffer_ == nullptr) CASPAR_LOG(info) << "PUT nullptr";
 			muxer_->push( last_video_buffer_ );
 		}
 		else if ( audio_input_->output_size() >= sync_frames_ ) 
@@ -526,6 +549,9 @@ safe_ptr<core::frame_producer> create_producer(
 	prm.vfps_jt = vfps_jt;
 	prm.delay = delay;
 	prm.drop_frames_interval = params.get(L"DROP_INTERVAL", 500.0f);
+	prm.enable_video_dup = params.has(L"VIDEO_DUP");
+	prm.do_not_audio_click = params.has(L"DONT_CLICK");
+	prm.unsync_patience_frames = params.get(L"UNSYNC_PATIENCE", (int)30);
 	prm.audioDroperParams.borderLatencyMs = params.get(L"AD_BORDERLATENCYMS", AD_DEFAULT_borderLatencyMs);
 	prm.audioDroperParams.channels = SAudioChannels;
 	prm.audioDroperParams.frameSamples = params.get(L"AD_FRAMESAMPLES", AD_DEFAULT_frameSamples);

@@ -47,16 +47,27 @@ struct common_input_data
 	const int height;
 	const bool variable_in_fps;
 	const std::vector<double> vfps_vals_list_;
+	const int unsync_patience_frames_;
+	tbb::atomic<int> video_late_frames_;
+	const bool do_not_audio_click_;
+
+	tbb::atomic<int> excess_video_problem_duration_;
+	tbb::atomic<int> excess_audio_problem_duration_;
 
 	input_video *video_input_;
 	input_audio *audio_input_;
 
-	common_input_data(std::string resource_name, core::video_format_desc video_format_desc, int buff_time_max, int buff_time_enough, int w, int h, bool vfps, std::vector<double> vfps_vals_list);
+	common_input_data(std::string resource_name, core::video_format_desc video_format_desc, int buff_time_max, int buff_time_enough, int w, int h, bool vfps, std::vector<double> vfps_vals_list, int unsync_patience_frames, bool do_not_audio_click);
 
 	bool input_full();
 	bool input_initialized();
 	void checkForDesync(int sync_frames);
 	void stopAll();
+	void cancel_wait_unsync();
+
+	int get_video_late_frames();
+	void decrease_video_late_frames();
+	void add_video_late_frames(int n);
 
 	tbb::atomic<bool> buff_ready;
 };

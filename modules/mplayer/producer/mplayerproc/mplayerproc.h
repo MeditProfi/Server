@@ -10,7 +10,7 @@ namespace caspar { namespace mplayer {
 struct mplayer_process
 {
 public: 
-	mplayer_process(long unique_num, std::string resource_name, int cache_size, common_input_data* cmn, double infps, std::string opt_params, int vfps_jt);
+	mplayer_process(long unique_num, std::string resource_name, int cache_size, common_input_data* cmn, double infps, std::string opt_params, int vfps_jt, bool enable_video_dup);
 	void start_thread();
 	bool working();
 	void problem();

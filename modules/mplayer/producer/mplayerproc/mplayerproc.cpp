@@ -51,9 +51,12 @@ struct mplayer_process::implementation : boost::noncopyable
 	double maybe_newfps;
 	int newfps_trys;
 	unsigned long						missed_packets_;
+	
+	const bool						    enable_video_dup_;
+	int									video_late_time_;
 
 
-	explicit implementation(long unique_num, string resource_name, int cache_size, common_input_data* cmn, double infps, std::string opt_params, int vfps_jt) 
+	explicit implementation(long unique_num, string resource_name, int cache_size, common_input_data* cmn, double infps, std::string opt_params, int vfps_jt, bool enable_video_dup) 
 		: executor_(L"mplayer-control-" + toWStr(resource_name) + L"-" + std::to_wstring((long long)unique_num))
 		, executor_stdout_(L"mplayer-control-stdout-" + toWStr(resource_name) + L"-" + std::to_wstring((long long)unique_num))
 		, resource_name_(resource_name)
@@ -70,6 +73,8 @@ struct mplayer_process::implementation : boost::noncopyable
 		, read_stdout_event_(0)
 		, vjt(vfps_jt)
 		, missed_packets_(0)
+		, enable_video_dup_(enable_video_dup)
+		, video_late_time_(0)
 	{
 		mdb("vjt = " << vjt);
 
@@ -77,7 +82,6 @@ struct mplayer_process::implementation : boost::noncopyable
 		newfps_trys = 0;
 		maybe_newfps = 0;
 
-		
 
 		stdout_thread_started = false;
 
@@ -603,7 +607,7 @@ struct mplayer_process::implementation : boost::noncopyable
 	}
 
 	void read_mplayer_params()
-	{
+	{		
 		char buf[MPLAYER_STDOUT_BUFSZ];
 		DWORD rb = 0;
 
@@ -646,16 +650,34 @@ struct mplayer_process::implementation : boost::noncopyable
 					break;
 
 				case 't':	//frame timestamp
-					if (cmn_->variable_in_fps)
+					try 
 					{
-						try 
+						double frame_ts_ = stod(val);
+						if (prev_frame_ts_ > 0)
 						{
-							double frame_ts_ = stod(val);
-							//mdb("frame_ts_=" << frame_ts_);
-							if (prev_frame_ts_ > 0)
-							{
-								double dt = frame_ts_ - prev_frame_ts_;
+							double dt = frame_ts_ - prev_frame_ts_;
 
+							if (enable_video_dup_)
+							{
+								int dtint = (int)(dt * 1000 + 0.5);  
+								int dtint_expected = (int)((1/cmn_->in_fps_) * 1000 + 0.5);
+								int dtint_late = dtint - dtint_expected;
+								if (dtint_late > 0)
+								{
+									mdb("dPTS from mplayer ("<< dtint << ") differs from expected value (" << dtint_expected <<")");
+
+									video_late_time_ += dtint_late;
+
+									int nframes = video_late_time_ / dtint_expected;
+									cmn_->add_video_late_frames(nframes);
+									mdb("video_late_frames now is " << cmn_->get_video_late_frames());
+
+									video_late_time_ -= nframes * dtint_expected;
+									mdb("video_late_time rest now is " << video_late_time_);
+								}
+							}
+							else if (cmn_->variable_in_fps)
+							{
 								if ((dt >= MIN_FRAME_TIME) && (dt <= MAX_FRAME_TIME))
 								{
 									if (fabs(dt - prev_frame_dt_) > 0.0000001)
@@ -710,10 +732,10 @@ struct mplayer_process::implementation : boost::noncopyable
 									}
 								}
 							}
-							prev_frame_ts_ = frame_ts_;
 						}
-						catch (...) {}
+						prev_frame_ts_ = frame_ts_;
 					}
+					catch (...) {}
 					break;
 
 
@@ -734,7 +756,7 @@ struct mplayer_process::implementation : boost::noncopyable
 
 
 
-mplayer_process::mplayer_process(long unique_num, std::string resource_name, int cache_size, common_input_data* cmn, double infps, std::string opt_params, int vfps_jt) : impl_( new implementation(unique_num, resource_name, cache_size, cmn, infps, opt_params, vfps_jt)) {}
+mplayer_process::mplayer_process(long unique_num, std::string resource_name, int cache_size, common_input_data* cmn, double infps, std::string opt_params, int vfps_jt, bool enable_video_dup) : impl_( new implementation(unique_num, resource_name, cache_size, cmn, infps, opt_params, vfps_jt, enable_video_dup)) {}
 void mplayer_process::start_thread() {impl_->start_thread();}
 bool mplayer_process::working() {return impl_->mplayer_working_;}
 shared_ptr<mplayer_pipe> mplayer_process::video_pipe() {return impl_->video_pipe_;}
