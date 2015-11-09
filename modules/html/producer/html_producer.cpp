@@ -206,7 +206,7 @@ namespace caspar {
 				{
 					frames_.push(frame);
 
-					size_t max_in_queue = frame_factory_->get_video_format_desc().field_count;
+					size_t max_in_queue = frame_factory_->get_video_format_desc().field_count + 1;
 
 					while (frames_.size() > max_in_queue)
 					{
@@ -400,15 +400,10 @@ namespace caspar {
 					graph_->set_tag("late-frame");
 
 					if (format_desc.field_mode != core::field_mode::progressive)
-					{
 						lock(last_frame_mutex_, [&]
 						{
 							last_frame_ = last_progressive_frame_;
 						});
-
-						timer.tick(1.0 / (format_desc.fps * format_desc.field_count));
-						invoke_requested_animation_frames();
-					}
 				}
 			}
 
