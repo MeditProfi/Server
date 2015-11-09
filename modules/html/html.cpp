@@ -58,71 +58,6 @@ void caspar_log(
 	}
 }
 
-class animation_handler : public CefV8Handler
-{
-private:
-	std::vector<CefRefPtr<CefV8Value>> callbacks_;
-	boost::timer since_start_timer_;
-public:
-	CefRefPtr<CefBrowser> browser;
-	std::function<CefRefPtr<CefV8Context>()> get_context;
-
-	bool Execute(
-			const CefString& name,
-			CefRefPtr<CefV8Value> object,
-			const CefV8ValueList& arguments,
-			CefRefPtr<CefV8Value>& retval,
-			CefString& exception) override
-	{
-		if (!CefCurrentlyOn(TID_RENDERER))
-			return false;
-
-		if (arguments.size() < 1 || !arguments.at(0)->IsFunction())
-		{
-			return false;
-		}
-
-		callbacks_.push_back(arguments.at(0));
-
-		if (browser)
-			browser->SendProcessMessage(PID_BROWSER, CefProcessMessage::Create(
-					ANIMATION_FRAME_REQUESTED_MESSAGE_NAME));
-
-		return true;
-	}
-
-	void tick()
-	{
-		if (!get_context)
-			return;
-
-		auto context = get_context();
-
-		if (!context)
-			return;
-
-		if (!CefCurrentlyOn(TID_RENDERER))
-			return;
-
-		std::vector<CefRefPtr<CefV8Value>> callbacks;
-		callbacks_.swap(callbacks);
-
-		CefV8ValueList callback_args;
-		CefTime timestamp;
-		timestamp.Now();
-		callback_args.push_back(CefV8Value::CreateDouble(
-				since_start_timer_.elapsed() * 1000.0));
-
-		BOOST_FOREACH(auto callback, callbacks)
-		{
-			callback->ExecuteFunctionWithContext(
-					context, callback, callback_args);
-		}
-	}
-
-	IMPLEMENT_REFCOUNTING(animation_handler);
-};
-
 class remove_handler : public CefV8Handler
 {
 	CefRefPtr<CefBrowser> browser_;
@@ -154,24 +89,11 @@ public:
 
 class renderer_application : public CefApp, CefRenderProcessHandler
 {
-	std::vector<std::pair<CefRefPtr<animation_handler>, CefRefPtr<CefV8Context>>> contexts_per_handlers_;
-	//std::map<CefRefPtr<animation_handler>, CefRefPtr<CefV8Context>> contexts_per_handlers_;
+	std::vector<CefRefPtr<CefV8Context>> contexts_;
 public:
 	CefRefPtr<CefRenderProcessHandler> GetRenderProcessHandler() override
 	{
 		return this;
-	}
-
-	CefRefPtr<CefV8Context> get_context(
-			const CefRefPtr<animation_handler>& handler)
-	{
-		BOOST_FOREACH(auto& ctx, contexts_per_handlers_)
-		{
-			if (ctx.first == handler)
-				return ctx.second;
-		}
-
-		return nullptr;
 	}
 
 	void OnContextCreated(
@@ -183,34 +105,44 @@ public:
 				"context for frame "
 				+ boost::lexical_cast<std::string>(frame->GetIdentifier())
 				+ " created");
-
-		CefRefPtr<animation_handler> handler = new animation_handler;
-		contexts_per_handlers_.push_back(std::make_pair(handler, context));
-		auto handler_ptr = handler.get();
-
-		handler->browser = browser;
-		handler->get_context = [this, handler_ptr]
-		{
-			return get_context(handler_ptr);
-		};
+		contexts_.push_back(context);
 
 		auto window = context->GetGlobal();
 
-		auto function = CefV8Value::CreateFunction(
-				"requestAnimationFrame",
-				handler.get());
 		window->SetValue(
-				"requestAnimationFrame",
-				function,
+				"remove",
+ 				CefV8Value::CreateFunction(
+  						"remove",
+  						new remove_handler(browser)),
 				V8_PROPERTY_ATTRIBUTE_NONE);
 
-		function = CefV8Value::CreateFunction(
-				"remove",
-				new remove_handler(browser));
-		window->SetValue(
-				"remove",
-				function,
-				V8_PROPERTY_ATTRIBUTE_NONE);
+		CefRefPtr<CefV8Value> ret;
+		CefRefPtr<CefV8Exception> exception;
+		bool injected = context->Eval(
+			"var requestedAnimationFrames	= {};\n"
+			"var currentAnimationFrameId		= 0;\n"
+			"\n"
+			"window.requestAnimationFrame = function(callback) {\n"
+			"	requestedAnimationFrames[++currentAnimationFrameId] = callback;\n"
+			"	return currentAnimationFrameId;\n"
+			"}\n"
+			"\n"
+			"window.cancelAnimationFrame = function(animationFrameId) {\n"
+			"	delete requestedAnimationFrames[animationFrameId];\n"
+			"}\n"
+			"function tickAnimations() {\n"
+			"	var requestedFrames = requestedAnimationFrames;\n"
+			"	var timestamp = performance.now();\n"
+			"	requestedAnimationFrames = {};\n"
+			"\n"
+			"	for (var animationFrameId in requestedFrames)\n"
+			"		if (requestedFrames.hasOwnProperty(animationFrameId))\n"
+			"			requestedFrames[animationFrameId](timestamp);\n"
+			"}\n"
+			, ret, exception);
+
+		if (!injected)
+			caspar_log(browser, boost::log::trivial::error, "Could not inject javascript animation code.");
 	}
 
 	void OnContextReleased(
@@ -219,14 +151,12 @@ public:
 			CefRefPtr<CefV8Context> context)
 	{
 		auto removed = boost::remove_if(
-				contexts_per_handlers_, [&](const std::pair<
-						CefRefPtr<animation_handler>,
-						CefRefPtr<CefV8Context>>& c)
-		{
-			return c.second->IsSame(context);
-		});
+				contexts_, [&](const CefRefPtr<CefV8Context>& c)
+				{
+					return c->IsSame(context);
+				});
 
-		if (removed != contexts_per_handlers_.end())
+		if (removed != contexts_.end())
 			caspar_log(browser, boost::log::trivial::trace,
 					"context for frame "
 					+ boost::lexical_cast<std::string>(frame->GetIdentifier())
@@ -240,7 +170,7 @@ public:
 
 	void OnBrowserDestroyed(CefRefPtr<CefBrowser> browser) override
 	{
-		contexts_per_handlers_.clear();
+		contexts_.clear();
 	}
 
 	bool OnProcessMessageReceived(
@@ -250,9 +180,11 @@ public:
 	{
 		if (message->GetName().ToString() == TICK_MESSAGE_NAME)
 		{
-			BOOST_FOREACH(auto& handler, contexts_per_handlers_)
+			BOOST_FOREACH(auto& context, contexts_)
 			{
-				handler.first->tick();
+				CefRefPtr<CefV8Value> ret;
+				CefRefPtr<CefV8Exception> exception;
+				context->Eval("tickAnimations()", ret, exception);
 			}
 
 			return true;
