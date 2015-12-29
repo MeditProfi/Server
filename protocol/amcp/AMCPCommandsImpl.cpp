@@ -2102,6 +2102,36 @@ bool ThumbnailCommand::DoExecuteGenerateAll()
 	}
 }
 
+bool CinfOneCommand::DoExecute()
+{
+	std::wstringstream replyString;
+
+	try
+	{
+		std::wstring info;
+		auto path = env::media_folder() + _parameters.at(0);
+		if (boost::filesystem::exists(path))
+			info = MediaInfo(path, GetMediaInfoRepo());
+
+		if(info.empty())
+		{
+			SetReplyString(TEXT("404 CINFONE ERROR\r\n"));
+			return false;
+		}
+		replyString << TEXT("200 CINFONE OK\r\n");
+		replyString << info << "\r\n";
+	}
+	catch(...)
+	{
+		SetReplyString(TEXT("404 CINFONE ERROR\r\n"));
+		return false;
+	}
+
+	SetReplyString(replyString.str());
+	return true;
+}
+
+
 bool CinfCommand::DoExecute()
 {
 	std::wstringstream replyString;
