@@ -215,6 +215,12 @@ class CinfCommand : public AMCPCommandBase<false, AddToQueue, 1>
 	bool DoExecute();
 };
 
+class CinfOneCommand : public AMCPCommandBase<false, AddToQueue, 1>
+{
+	std::wstring print() const { return L"CinfOneCommand";}
+	bool DoExecute();
+};
+
 class InfoCommand : public AMCPCommandBase<false, AddToQueue, 0>
 {
 public:
