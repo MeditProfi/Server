@@ -58,6 +58,9 @@ struct video_decoder::implementation : boost::noncopyable
 	std::queue<safe_ptr<AVPacket>>			packets_;
 	
 	const uint32_t							nb_frames_;
+	const AVRational						stream_tbn_;
+	const AVRational						stream_framerate_;
+	const bool								frame_number_from_pts_;
 
 	const size_t							width_;
 	const size_t							height_;
@@ -69,6 +72,9 @@ public:
 	explicit implementation(const safe_ptr<AVFormatContext>& context) 
 		: codec_context_(open_codec(*context, AVMEDIA_TYPE_VIDEO, index_))
 		, nb_frames_(static_cast<uint32_t>(context->streams[index_]->nb_frames))
+		, stream_tbn_(context->streams[index_]->time_base)
+		, stream_framerate_(context->streams[index_]->avg_frame_rate)
+		, frame_number_from_pts_( (stream_framerate_.num > 0) && (stream_framerate_.den > 0) && (stream_tbn_.num > 0) && (stream_tbn_.den > 0) )
 		, width_(codec_context_->width)
 		, height_(codec_context_->height)
 	{
@@ -103,7 +109,7 @@ public:
 			}
 					
 			packets_.pop();
-			file_frame_number_ = static_cast<size_t>(packet->pos);
+			if (!frame_number_from_pts_) file_frame_number_ = static_cast<size_t>(packet->pos);
 			avcodec_flush_buffers(codec_context_.get());
 			return flush_video();	
 		}
@@ -134,7 +140,17 @@ public:
 		if(decoded_frame->repeat_pict > 0)
 			CASPAR_LOG(warning) << "[video_decoder] Field repeat_pict not implemented.";
 		
-		++file_frame_number_;
+		if (frame_number_from_pts_)
+		{
+			uint64_t frame_num = decoded_frame->best_effort_timestamp;
+			frame_num *= stream_framerate_.num;
+			frame_num /= stream_framerate_.den;
+			frame_num *= stream_tbn_.num;
+			frame_num /= stream_tbn_.den;
+
+			file_frame_number_ = static_cast<unsigned int>(frame_num);
+		} else ++file_frame_number_;
+
 
 		// This ties the life of the decoded_frame to the packet that it came from. For the
 		// current version of ffmpeg (0.8 or c17808c) the RAW_VIDEO codec returns frame data

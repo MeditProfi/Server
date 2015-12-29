@@ -86,6 +86,7 @@ struct input::implementation : boost::noncopyable
 	tbb::atomic<size_t>											buffer_size_;
 		
 	executor													executor_;
+	const bool													correct_seek_mode_;
 	
 	explicit implementation(const safe_ptr<diagnostics::graph> graph, const std::wstring& filename, FFMPEG_Resource resource_type, bool loop, uint32_t start, uint32_t length, bool thumbnail_mode, const ffmpeg_producer_params& vid_params) 
 		: graph_(graph)
@@ -97,6 +98,7 @@ struct input::implementation : boost::noncopyable
 		, thumbnail_mode_(thumbnail_mode)
 		, frame_number_(0)
 		, executor_(print())
+		, correct_seek_mode_( define_correct_seek_mode() )
 	{
 		if (thumbnail_mode_)
 			executor_.invoke([]
@@ -107,14 +109,40 @@ struct input::implementation : boost::noncopyable
 		loop_			= loop;
 		buffer_size_	= 0;
 
-		if(start_ > 0)			
-			queued_seek(start_);
+
+		if(start_ > 0)
+		{
+			if (correct_seek_mode_)
+			{
+				// ffmpeg almost allways seeks to the first I-frame of the GOP for h264, though it seeks to the next GOP if seeking at 2 last
+				// frames of the GOP. So to avoid unnecessary re-seeking - when using 'correct_seek_mode', we allways offset -2 frames when
+				// calling ffmpeg SEEK
+				#define SEEK_CORRECT_BACK_OFFSET 2
+				CASPAR_LOG(debug) << "correct seeking mode is ON: ffmpeg SEEK is offset by -" << SEEK_CORRECT_BACK_OFFSET << " frames";
+				queued_seek(start_ >= SEEK_CORRECT_BACK_OFFSET ? start_ - SEEK_CORRECT_BACK_OFFSET : 0);
+			}
+			else queued_seek(start_);
+		}
 								
 		graph_->set_color("seek", diagnostics::color(1.0f, 0.5f, 0.0f));	
 		graph_->set_color("buffer-count", diagnostics::color(0.7f, 0.4f, 0.4f));
 		graph_->set_color("buffer-size", diagnostics::color(1.0f, 1.0f, 0.0f));	
 
 		tick();
+	}
+
+	bool define_correct_seek_mode()
+	{
+		int vid_stream_index = av_find_best_stream(format_context_.get(), AVMEDIA_TYPE_VIDEO, -1, -1, 0, 0);
+
+		if (vid_stream_index >= 0)
+		{
+			auto codec_id = format_context_->streams[vid_stream_index]->codec->codec_id;
+			if (codec_id == CODEC_ID_H264)
+				return true;
+		}
+
+		return false;
 	}
 	
 	bool try_pop(std::shared_ptr<AVPacket>& packet)
@@ -389,4 +417,5 @@ safe_ptr<AVFormatContext> input::context(){return impl_->format_context_;}
 void input::loop(bool value){impl_->loop_ = value;}
 bool input::loop() const{return impl_->loop_;}
 boost::unique_future<bool> input::seek(uint32_t target){return impl_->seek(target);}
+bool input::correct_seek_mode() {return impl_->correct_seek_mode_;}
 }}
