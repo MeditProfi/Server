@@ -202,7 +202,7 @@ std::wstring read_file(const boost::filesystem::path& file)
 	return read_latin1_file(file);
 }
 
-std::wstring MediaInfo(const boost::filesystem::path& path, const std::shared_ptr<core::media_info_repository>& media_info_repo)
+std::wstring MediaInfo(const boost::filesystem::path& path, const std::shared_ptr<core::media_info_repository>& media_info_repo, bool directpath = false)
 {
 	if(boost::filesystem::is_regular_file(path))
 	{
@@ -230,7 +230,9 @@ std::wstring MediaInfo(const boost::filesystem::path& path, const std::shared_pt
 		{		
 			auto is_not_digit = [](char c){ return std::isdigit(c) == 0; };
 
-			auto relativePath = boost::filesystem::path(path.wstring().substr(env::media_folder().size()-1, path.wstring().size()));
+			auto relativePath = directpath ? path.wstring()
+			                  :              boost::filesystem::path(path.wstring().substr(env::media_folder().size()-1, path.wstring().size()))
+			                  ;
 
 			auto writeTimeStr = boost::posix_time::to_iso_string(boost::posix_time::from_time_t(boost::filesystem::last_write_time(path)));
 			writeTimeStr.erase(std::remove_if(writeTimeStr.begin(), writeTimeStr.end(), is_not_digit), writeTimeStr.end());
@@ -2109,9 +2111,10 @@ bool CinfOneCommand::DoExecute()
 	try
 	{
 		std::wstring info;
-		auto path = env::media_folder() + _parameters.at(0);
+	    bool directpath = _parameters.has(L"DIRECTPATH");
+		auto path = (directpath ? L"" : env::media_folder()) + _parameters.at(0);
 		if (boost::filesystem::exists(path))
-			info = MediaInfo(path, GetMediaInfoRepo());
+			info = MediaInfo(path, GetMediaInfoRepo(), directpath);
 
 		if(info.empty())
 		{
