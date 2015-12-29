@@ -184,6 +184,71 @@ public:
 			BOOST_THROW_EXCEPTION(averror_stream_not_found() << msg_info("No streams found"));
 
 		muxer_.reset(new frame_muxer(fps_, frame_factory, thumbnail_mode_, audio_channel_layout, filter));
+
+		if ((resource_type_ == FFMPEG_FILE) && (start_ != 0) && (input_.correct_seek_mode())) seek_gop();
+	}
+
+	#define INIT_UNDERFLOW_TOUT_SEC	2.0
+	#define SEEK_BACK_OFFSET 2
+	void seek_gop()
+	{
+		CASPAR_LOG(info) << "checking for correct seeking within GOP";
+		boost::timer underflow_timer;
+		int drop_count = 0;
+		size_t last_frame_num = 0;
+		bool first_frame = true;
+
+		while (true)
+		{
+			//wait for next frame
+			underflow_timer.restart();
+			while (frame_buffer_.empty())
+			{
+				do_decode(core::frame_producer::NO_HINT);
+
+				if (frame_buffer_.empty())
+				{
+					if (input_.eof())
+					{
+						BOOST_THROW_EXCEPTION( operation_failed() << msg_info("could not correct seeking within GOP: EOF achieved") );
+					}
+					else
+					{
+						graph_->set_tag("underflow");
+						send_osc();
+						if (underflow_timer.elapsed() > INIT_UNDERFLOW_TOUT_SEC)
+						{
+							BOOST_THROW_EXCEPTION( timed_out() << msg_info("could not correct seeking within GOP: no input data (timeout " + std::to_string((long double)INIT_UNDERFLOW_TOUT_SEC) + " sec)"));
+						}
+					}
+				}
+			}
+
+			//check for correct frame number
+			size_t frame_num = frame_buffer_.front().second;
+			if ((frame_num != last_frame_num) || first_frame)
+			{
+				if (frame_num >= start_) break;
+			}
+			else
+			{
+				CASPAR_LOG(error) << "could not correct seeking within GOP: incorrect pts on frame " << frame_num;
+				return;
+			}
+
+
+			//drop frame if not correct number
+			frame_buffer_.pop();
+			++drop_count;
+			last_frame_num = frame_num;
+
+			first_frame = false;
+		}
+
+		if (drop_count > 0)
+		    CASPAR_LOG(info) << "seeking within GOP has been corrected: " << drop_count << " frames was dropped";
+		else
+		    CASPAR_LOG(info) << "seeking is already correct";
 	}
 
 	// frame_producer
@@ -198,13 +263,18 @@ public:
 		return disable_audio(last_frame_);
 	}
 
+	inline void do_decode(int hints)
+	{
+		for(int n = 0; n < 16 && frame_buffer_.size() < 2; ++n)
+			try_decode_frame(hints);
+	}
+
 	std::pair<safe_ptr<core::basic_frame>, uint32_t> render_frame(int hints)
 	{		
 		frame_timer_.restart();
 		auto disable_logging = temporary_disable_logging_for_thread(thumbnail_mode_);
 				
-		for(int n = 0; n < 16 && frame_buffer_.size() < 2; ++n)
-			try_decode_frame(hints);
+		do_decode(hints);
 		
 		graph_->set_value("frame-time", frame_timer_.elapsed()*format_desc_.fps*0.5);
 

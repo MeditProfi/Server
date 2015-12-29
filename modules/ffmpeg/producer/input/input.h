@@ -56,6 +56,7 @@ public:
 	bool loop() const;
 
 	boost::unique_future<bool> seek(uint32_t target);
+	bool correct_seek_mode();
 
 	safe_ptr<AVFormatContext> context();
 private:
