@@ -593,7 +593,14 @@ safe_ptr<core::frame_producer> create_producer(
 	{
 		// File
 		resource_type = FFMPEG_FILE;
-		filename = env::media_folder() + L"\\" + tokens[1];
+		if (params.has(L"DIRECTPATH"))
+		{
+			filename = params.at_original(0);
+		}
+		else
+		{
+			filename = env::media_folder() + L"\\" + tokens[1];
+		}
 		if(!boost::filesystem::exists(filename))
 			filename = probe_stem(filename);
 
